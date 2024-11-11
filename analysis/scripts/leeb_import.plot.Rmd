@@ -1,0 +1,182 @@
+---
+title: "Equotip hardness measurements - raw material comparison"
+author: "Lisa Schunk"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
+---
+
+
+```{r Knitr Options, include=FALSE}
+knitr::opts_chunk$set(comment=NA, message=FALSE, indent="", error=TRUE)
+
+```
+
+---
+
+
+# Goal of the script
+This script reads the xlsx file (measurements have been generated with the Equotip Leeb C rebound)  and formats the data for a statistical analysis.  
+The script will:
+
+1. Read in the original xlsx file and organise the data 
+2. Plot the data 
+3. Write an XLSX-file and save an R object ready for further analysis in R 
+
+
+
+```{r}
+dir_in <- "analysis/raw_data/"
+dir_out <- "analysis/plots"
+
+```
+
+Raw data must be located in `r paste0("~/", dir_in)`.  
+Formatted data will be saved in `r paste0("~/", dir_out)`.
+The knit directory for this script is the project directory.
+
+
+---
+
+# Load packages
+```{r Libraries}
+pack_to_load <- c("tidyverse", "readr", "openxlsx", "tools", "ggplot2", "readxl")
+sapply(pack_to_load, library, character.only = TRUE, logical.return = TRUE)
+
+```
+
+
+---
+
+
+# Get name, path and information of the file
+```{r}
+data_file <- list.files(dir_in, pattern = "\\.xlsx$", full.names = TRUE)
+md5_in <- md5sum(data_file)
+info_in <- data.frame(files = basename(names(md5_in)), checksum = md5_in, 
+                  row.names = NULL)
+
+```
+
+
+# Read in original xlsx-file
+```{r}
+imp_data <- read.xlsx(xlsxFile = data_file, sheet = 1, startRow = 3, colNames = TRUE, 
+                      rowNames = FALSE, skipEmptyRows = FALSE) 
+
+imp_data$hardness.in.HLC <- as.numeric(imp_data$hardness.in.HLC)
+
+# reorder raw.material column 
+imp_data[["raw.material"]] <- factor(imp_data[["raw.material"]], levels = c("flint","lydite", "obsidian", "quarzite", "grogged_porcelain", "ungrogged_porcelain", "stone_ware"))
+str(imp_data)
+
+
+flint <- imp_data[1:32,]
+lydite <- imp_data[33:62,]
+grogged_porcelain <- imp_data[63:87,]
+ungrogged_porcelain <- imp_data[88:115,]
+stone_ware <- imp_data[116:141,]
+quarzite <- imp_data[142:164,]
+obsidian <- imp_data[165:194,]
+
+
+```
+
+
+# Data analysis - stats  
+```{r}
+# descriptive statistics 
+# flint
+length(flint[["ID"]])
+summary(flint[["hardness.in.HLC"]])
+
+# schist
+length(lydite[["ID"]])
+summary(lydite[["hardness.in.HLC"]])
+
+# grogged_porcelain
+length(grogged_porcelain[["ID"]])
+summary(grogged_porcelain[["hardness.in.HLC"]])
+
+# ungrogged_porcelain
+length(ungrogged_porcelain[["ID"]])
+summary(ungrogged_porcelain[["hardness.in.HLC"]])
+
+# stone_ware
+length(stone_ware[["ID"]])
+summary(stone_ware[["hardness.in.HLC"]])
+
+# quarzite
+length(quarzite[["ID"]])
+summary(quarzite[["hardness.in.HLC"]])
+
+# obsidian
+length(obsidian[["ID"]])
+summary(obsidian[["hardness.in.HLC"]])
+
+# create new data frame with mean value 
+stats <- imp_data %>% group_by(raw.material) %>% summarize(m = mean(hardness.in.HLC))
+# change number of decimal digits 
+stats$m <- round(stats$m, 1)
+
+
+```
+
+
+# Data analsysis - plot 
+```{r}
+# boxplot
+data_plot <- ggplot (imp_data, aes(y = hardness.in.HLC, x = raw.material)) + 
+             theme_classic() + 
+             theme(legend.title = element_blank()) +
+             geom_boxplot(fill = c("#52854c", "#985633", "#134680", "#ffdb6d", "#9a0f0f", "#c3d7a4", "#487bb6")) +
+             geom_jitter() + 
+             geom_text(data = stats, aes(y = m, label = m),  colour = 'black', size = 4, vjust = 13.1) +
+             labs(x = "", y = "Leeb Rebound Hardness in HLC", title = "") +
+             scale_x_discrete(labels = c("flint", "lydite", "obsidian", "quarzite", "gr. porcelain", 
+                                         "ungro. porcelain", "stone ware")) +
+             guides(fill = "none")
+
+print(data_plot)
+
+
+```
+
+
+# Save data
+## Define output file name
+```{r}
+file_out <- paste0(basename(file_path_sans_ext(data_file)), ".pdf")
+ggsave(filename = file_out, plot = data_plot, path = dir_out, device = "pdf")
+
+```
+The files will be saved as "`r paste0("~/", dir_out, ".[ext]")`".
+
+
+---
+
+# sessionInfo() and RStudio version
+
+```{r}
+sessionInfo()
+
+```
+
+RStudio version `r readLines("RStudioVersion.txt", n = 1)`.
+
+
+
+# Cite R packages used
+```{r Citation}
+for (i in pack_to_load) print(citation(i), bibtex = FALSE)
+
+```
+
+--- 
+
+END OF SCRIPT
